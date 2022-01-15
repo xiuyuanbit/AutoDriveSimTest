@@ -36,4 +36,7 @@ traj.x = cx;
 traj.y = cy;
 traj.yaw = cyaw;
 traj.k = ck;
+
+target_v = 30/3.6;
+traj.v = target_v * ones(length(traj.x),1);
 end

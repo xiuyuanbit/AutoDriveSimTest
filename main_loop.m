@@ -2,7 +2,8 @@ clear;clc;close all;
 
 traj = init_trajectory();
 figure;
-h = plot(traj.x,traj.y,'-k');hold on;
+plot(traj.x,traj.y,'-k');hold on;
+axis equal;
 
 L = 2.9; % [m] wheel base of vehicle
 
@@ -11,7 +12,11 @@ lqr_controller = LqrController(L);
 
 %car.printState();
 state = car.state();
-target_v = 30/3.6;
+car.plotVehicle();
+pause(1);
+%delete(h);
+car.clearPlotVehicle();
+%target_v = 30/3.6;
 
 ind =0;
 dt = 0.02;
@@ -20,10 +25,11 @@ pth_e = 0;
 
 while ind < length(traj.x)-1
     if ind > 0
-        delete(h);
+        car.clearPlotVehicle();
     end
+    ind = ind +1;
     %delta =2.0*pi/180;
-    a = PIDcontrol(target_v,state.v,1);
+    a = PIDcontrol(traj.v(ind+1),state.v,1);
     
     [delta,ind,e,th_e] =  lqr_controller.control(state,traj, pe, pth_e,dt);
     pe =e;
@@ -35,13 +41,15 @@ while ind < length(traj.x)-1
     
     state = car.move(delta ,a,dt);
     car.saveState();
+    car.plotVehicle('pt');
     
-    h = plot(state.loc.x,state.loc.y,'bo');
     pause(0.01);
+    if strcmpi(get(gcf,'CurrentCharacter'),'e')
+        disp("Hello")
+    end
  
     hold on
 end
-
 car.plotHisTraj();
 % figure;
 % car.plotVel();
