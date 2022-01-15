@@ -2,6 +2,7 @@ classdef VehicleModel < handle
     properties
         L_;      
         B_ = 1.8;
+        weight_point_ratio = 0.5;
         DelayAcc = 0.2;
         DelaySteer = 0.3;
         max_steer_;
@@ -26,6 +27,7 @@ classdef VehicleModel < handle
             obj.state_.v = obj.v_;
             obj.state_.a = 0;
             obj.state_.delta = 0;
+            obj.state_.beta = 0;
             
             obj.his_states_.x=[];
             obj.his_states_.y=[];
@@ -41,10 +43,14 @@ classdef VehicleModel < handle
             obj.state_.a = obj.state_.a + (a - obj.state_.a) * dt/obj.DelayAcc;
             obj.state_.delta = obj.state_.delta + (delta - obj.state_.delta) * dt/obj.DelaySteer;
             
-            obj.loc_.yaw_rate = obj.v_ * tan(obj.state_.delta)/obj.L_;
+            % Add car weight point
+            obj.state_.beta = atan(obj.weight_point_ratio * tan(obj.state_.delta));
+            
+            obj.loc_.yaw_rate = obj.v_ * cos(obj.state_.beta) * tan(obj.state_.delta)/obj.L_;
             obj.loc_.yaw = obj.loc_.yaw  + obj.loc_.yaw_rate *dt;
-            obj.loc_.x = obj.loc_.x + obj.v_ * cos(obj.loc_.yaw) * dt; % + randn(1)* 0.1;% 故意加测量噪声进去
-            obj.loc_.y = obj.loc_.y + obj.v_ * sin(obj.loc_.yaw) * dt; % +  randn(1)* 0.1;
+            dis = obj.v_ * dt + 0.5 * obj.state_.a * dt * dt;
+            obj.loc_.x = obj.loc_.x + dis * cos(obj.loc_.yaw+obj.state_.beta); % + randn(1)* 0.1;% 故意加测量噪声进去
+            obj.loc_.y = obj.loc_.y + dis * sin(obj.loc_.yaw+obj.state_.beta); % +  randn(1)* 0.1;
             obj.v_ = obj.v_ + obj.state_.a * dt;  % + randn(1) * 0.1;% 故意加噪声进去，模拟车辆无法正常实现命令的情形
             obj.state_.loc = obj.loc_;
             obj.state_.v = obj.v_;
@@ -100,8 +106,8 @@ classdef VehicleModel < handle
             B = obj.B_;
             WidthTire = 0.5;
             
-            pt1 = obj.transTo(pt0,L*0.5,yaw);
-            pt2 = obj.transTo(pt0,-L*0.5,yaw);
+            pt1 = obj.transTo(pt0,L * (1-obj.weight_point_ratio),yaw);
+            pt2 = obj.transTo(pt0,-L * obj.weight_point_ratio,yaw);
             pt11 = obj.transTo(pt1,B*0.5,pi/2 + yaw);
             pt12 = obj.transTo(pt1,-B*0.5,pi/2 + yaw);
             pt21 = obj.transTo(pt2,B*0.5,pi/2 + yaw);
