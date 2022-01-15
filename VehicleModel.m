@@ -2,6 +2,8 @@ classdef VehicleModel < handle
     properties
         L_;      
         B_ = 1.8;
+        DelayAcc = 0.2;
+        DelaySteer = 0.3;
         max_steer_;
         
         loc_;
@@ -17,12 +19,13 @@ classdef VehicleModel < handle
             obj.loc_.x = 0;
             obj.loc_.y = 0;
             obj.loc_.yaw = pi/6;
+            obj.loc_.yaw_rate = 0;
             obj.v_ = 1;  
             
             obj.state_.loc = obj.loc_;
             obj.state_.v = obj.v_;
             obj.state_.a = 0;
-            obj.state_.steer_tire = 0;
+            obj.state_.delta = 0;
             
             obj.his_states_.x=[];
             obj.his_states_.y=[];
@@ -31,15 +34,18 @@ classdef VehicleModel < handle
         end
         
         function state=move(obj, delta, a, dt)
-            obj.state_.a = a;
-            
+
             delta = max(min(obj.max_steer_, delta), -obj.max_steer_);
-            obj.state_.steer_tire = delta;
             
+            % Add car actors time_delay
+            obj.state_.a = obj.state_.a + (a - obj.state_.a) * dt/obj.DelayAcc;
+            obj.state_.delta = obj.state_.delta + (delta - obj.state_.delta) * dt/obj.DelaySteer;
+            
+            obj.loc_.yaw_rate = obj.v_ * tan(obj.state_.delta)/obj.L_;
+            obj.loc_.yaw = obj.loc_.yaw  + obj.loc_.yaw_rate *dt;
             obj.loc_.x = obj.loc_.x + obj.v_ * cos(obj.loc_.yaw) * dt; % + randn(1)* 0.1;% 故意加测量噪声进去
             obj.loc_.y = obj.loc_.y + obj.v_ * sin(obj.loc_.yaw) * dt; % +  randn(1)* 0.1;
-            obj.loc_.yaw = obj.loc_.yaw + obj.v_ / obj.L_ * tan(delta) * dt; %remember here the yaw is in rad
-            obj.v_ = obj.v_ + a * dt;  % + randn(1) * 0.1;% 故意加噪声进去，模拟车辆无法正常实现命令的情形
+            obj.v_ = obj.v_ + obj.state_.a * dt;  % + randn(1) * 0.1;% 故意加噪声进去，模拟车辆无法正常实现命令的情形
             obj.state_.loc = obj.loc_;
             obj.state_.v = obj.v_;
             state = obj.state_;
@@ -54,7 +60,6 @@ classdef VehicleModel < handle
         end
         
         function printState(obj)
-            %disp("Hello");
             str = sprintf('pos(%.3f m,%.3f m,%.3f rad),v=%.3fm/s',...
                         obj.loc_.x,obj.loc_.y,obj.loc_.yaw,obj.v_);
             disp(str);
@@ -88,7 +93,7 @@ classdef VehicleModel < handle
                  obj.plotLine(pt1,pt2,'tag','ax1','g');
                 end
             end
-            delta = obj.state_.steer_tire;
+            delta = obj.state_.delta;
             yaw = obj.state_.loc.yaw;
             pt0 = obj.state_.loc;
             L = obj.L_;
